@@ -423,21 +423,27 @@ Write in simple {language} for someone with no medical background."""
 
 if __name__ == "__main__":
     import uvicorn
-    from starlette.middleware.base import BaseHTTPMiddleware
-    from starlette.requests import Request
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
-    class AllowAllHostsMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request: Request, call_next):
-            response = await call_next(request)
-            return response
+    class HostOverrideMiddleware:
+        def __init__(self, app: ASGIApp):
+            self.app = app
+        async def __call__(self, scope: Scope, receive: Receive, send: Send):
+            if scope["type"] in ("http", "websocket"):
+                scope["headers"] = [
+                    (b"host", b"localhost") if k == b"host" else (k, v)
+                    for k, v in scope.get("headers", [])
+                ]
+            await self.app(scope, receive, send)
 
-    app = mcp.streamable_http_app()
-    app.add_middleware(AllowAllHostsMiddleware)
+    try:
+        base_app = mcp.streamable_http_app()
+    except AttributeError:
+        try:
+            base_app = mcp.get_asgi_app()
+        except AttributeError:
+            from mcp.server.fastmcp import FastMCP
+            base_app = mcp._get_app()
 
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        forwarded_allow_ips="*",
-        proxy_headers=True
-    )
+    app = HostOverrideMiddleware(base_app)
+    uvicorn.run(app, host="0.0.0.0", port=8000, forwarded_allow_ips="*", proxy_headers=True)
