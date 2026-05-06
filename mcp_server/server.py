@@ -5,20 +5,18 @@ import os
 import json
 import httpx
 from dotenv import load_dotenv
-from google import genai
+import google.generativeai as genai
 from mcp.server.fastmcp import FastMCP
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 mcp = FastMCP("MedAssist AI")
 
 def ask_ai(prompt: str) -> str:
     try:
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=prompt
-        )
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         return f"AI Error: {str(e)}"
@@ -84,9 +82,8 @@ def image_analyzer(
         import base64
         image_data = base64.b64decode(image_base64)
         image = PIL.Image.open(io.BytesIO(image_data))
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=[
+        vision_model = genai.GenerativeModel("gemini-1.5-flash")
+response = vision_model.generate_content([
                 image,
                 f"""You are a clinical image analysis AI.
 FIRST check: Is this a medical/health image (wound, skin, rash, injury)?
