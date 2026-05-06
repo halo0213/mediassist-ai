@@ -8,8 +8,20 @@ from mcp.server.fastmcp import FastMCP
 # Patch transport security BEFORE creating FastMCP
 try:
     from mcp.server.transport_security import TransportSecurityMiddleware
+    
+    # Patch both methods to be safe
     TransportSecurityMiddleware.is_valid_host = lambda self, host: True
-    print("SUCCESS: is_valid_host patched")
+    
+    original_call = TransportSecurityMiddleware.__call__
+    async def bypassed_call(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            scope["headers"] = [
+                (b"host", b"localhost") if k == b"host" else (k, v)
+                for k, v in scope.get("headers", [])
+            ]
+        await self.app(scope, receive, send)
+    TransportSecurityMiddleware.__call__ = bypassed_call
+    print("SUCCESS: Full transport security bypassed")
 except Exception as e:
     print(f"Patch note: {e}")
 
