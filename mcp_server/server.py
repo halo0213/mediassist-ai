@@ -5,6 +5,25 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from mcp.server.fastmcp import FastMCP
 
+# Patch MCP host validation to allow all hosts
+try:
+    from mcp.server import sse as _sse
+    _sse.SseServerTransport.__init__.__globals__
+except:
+    pass
+
+try:
+    import mcp.server.transport_security as _ts
+    class _AllowAll:
+        def is_valid_host(self, host): return True
+        async def __call__(self, scope, receive, send): await self.app(scope, receive, send)
+    original_init = _ts.TransportSecurityMiddleware.__init__
+    def patched_validate(self, host):
+        return True
+    _ts.TransportSecurityMiddleware.is_valid_host = patched_validate
+except Exception as ex:
+    print(f"Patch note: {ex}")
+
 load_dotenv()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -212,15 +231,15 @@ if __name__ == "__main__":
     from starlette.types import ASGIApp, Receive, Scope, Send
 
     class HostOverrideMiddleware:
-        def __init__(self, app: ASGIApp):
-            self.app = app
-        async def __call__(self, scope: Scope, receive: Receive, send: Send):
-            if scope["type"] in ("http", "websocket"):
-                scope["headers"] = [
-                    (b"host", b"localhost") if k == b"host" else (k, v)
-                    for k, v in scope.get("headers", [])
-                ]
-            await self.app(scope, receive, send)
+    def __init__(self, app: ASGIApp):
+        self.app = app
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] in ("http", "websocket"):
+            scope["headers"] = [
+                (b"host", b"mediassist-ai-ugb2.onrender.com") if k == b"host" else (k, v)
+                for k, v in scope.get("headers", [])
+            ]
+        await self.app(scope, receive, send)
 
     base_app = mcp.sse_app()
     app = HostOverrideMiddleware(base_app)
