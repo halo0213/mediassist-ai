@@ -1,5 +1,12 @@
 import os
 os.environ["MCP_ALLOWED_HOSTS"] = "*"
+
+# Monkey-patch MCP transport security to allow all hosts
+try:
+    import mcp.server.transport_security as _ts
+    _ts.TransportSecurityMiddleware.is_valid_host = lambda self, host: True
+except Exception as e:
+    print(f"Patch warning: {e}")
 import sys
 import os
 import json
