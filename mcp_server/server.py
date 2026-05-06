@@ -436,14 +436,24 @@ if __name__ == "__main__":
                 ]
             await self.app(scope, receive, send)
 
-    try:
-        base_app = mcp.streamable_http_app()
-    except AttributeError:
-        try:
-            base_app = mcp.get_asgi_app()
-        except AttributeError:
-            from mcp.server.fastmcp import FastMCP
-            base_app = mcp._get_app()
+    # Try different MCP versions
+    base_app = None
+    for method in ["streamable_http_app", "get_asgi_app", "http_app"]:
+        if hasattr(mcp, method):
+            base_app = getattr(mcp, method)()
+            print(f"Using method: {method}")
+            break
+
+    if base_app is None:
+        print("ERROR: No compatible MCP app method found")
+        import sys
+        sys.exit(1)
 
     app = HostOverrideMiddleware(base_app)
-    uvicorn.run(app, host="0.0.0.0", port=8000, forwarded_allow_ips="*", proxy_headers=True)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        forwarded_allow_ips="*",
+        proxy_headers=True
+    )
