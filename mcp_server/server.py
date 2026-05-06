@@ -9,12 +9,7 @@ from mcp.server.fastmcp import FastMCP
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-mcp = FastMCP(
-    "MedAssist AI",
-    host="0.0.0.0",
-    port=8000,
-    allowed_hosts=["mediassist-ai-ugb2.onrender.com", "localhost", "*"]
-)
+mcp = FastMCP("MedAssist AI")
 
 def ask_ai(prompt: str) -> str:
     try:
@@ -419,7 +414,17 @@ Write in simple {language} for someone with no medical background."""
 
 if __name__ == "__main__":
     import uvicorn
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
+
+    class AllowAllHostsMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            return response
+
     app = mcp.streamable_http_app()
+    app.add_middleware(AllowAllHostsMiddleware)
+
     uvicorn.run(
         app,
         host="0.0.0.0",
