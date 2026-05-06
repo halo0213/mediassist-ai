@@ -416,21 +416,7 @@ Write in simple {language} for someone with no medical background."""
 
 if __name__ == "__main__":
     import uvicorn
-    from starlette.types import ASGIApp, Receive, Scope, Send
-
-    class HostOverrideMiddleware:
-        def __init__(self, app: ASGIApp):
-            self.app = app
-        async def __call__(self, scope: Scope, receive: Receive, send: Send):
-            if scope["type"] in ("http", "websocket"):
-                scope["headers"] = [
-                    (b"host", b"localhost") if k == b"host" else (k, v)
-                    for k, v in scope.get("headers", [])
-                ]
-            await self.app(scope, receive, send)
-
-    base_app = mcp.sse_app()
-    app = HostOverrideMiddleware(base_app)
+    app = mcp.streamable_http_app()
     uvicorn.run(
         app,
         host="0.0.0.0",
