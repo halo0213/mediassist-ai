@@ -9,7 +9,12 @@ from mcp.server.fastmcp import FastMCP
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-mcp = FastMCP("MedAssist AI")
+mcp = FastMCP(
+    "MedAssist AI",
+    host="0.0.0.0",
+    port=8000,
+    allowed_hosts=["mediassist-ai-ugb2.onrender.com", "localhost", "*"]
+)
 
 def ask_ai(prompt: str) -> str:
     try:
