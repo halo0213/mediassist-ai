@@ -436,19 +436,7 @@ if __name__ == "__main__":
                 ]
             await self.app(scope, receive, send)
 
-    # Try different MCP versions
-    base_app = None
-    for method in ["streamable_http_app", "get_asgi_app", "http_app"]:
-        if hasattr(mcp, method):
-            base_app = getattr(mcp, method)()
-            print(f"Using method: {method}")
-            break
-
-    if base_app is None:
-        print("ERROR: No compatible MCP app method found")
-        import sys
-        sys.exit(1)
-
+    base_app = mcp.sse_app()
     app = HostOverrideMiddleware(base_app)
     uvicorn.run(
         app,
