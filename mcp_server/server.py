@@ -221,21 +221,24 @@ if __name__ == "__main__":
     class HostOverrideMiddleware:
         def __init__(self, app: ASGIApp):
             self.app = app
-
         async def __call__(self, scope: Scope, receive: Receive, send: Send):
             if scope["type"] in ("http", "websocket"):
                 scope["headers"] = [
-                    (b"host", b"mediassist-ai-ugb2.onrender.com") if k == b"host" else (k, v)
+                    (b"host", b"localhost") if k == b"host" else (k, v)
                     for k, v in scope.get("headers", [])
                 ]
             await self.app(scope, receive, send)
 
-    base_app = mcp.sse_app()
+    try:
+        base_app = mcp.sse_app()
+        print("Using sse_app")
+    except Exception:
+        try:
+            base_app = mcp.streamable_http_app()
+            print("Using streamable_http_app")
+        except Exception as e:
+            print(f"App error: {e}")
+            raise
+
     app = HostOverrideMiddleware(base_app)
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        forwarded_allow_ips="*",
-        proxy_headers=True
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000, forwarded_allow_ips="*", proxy_headers=True)
