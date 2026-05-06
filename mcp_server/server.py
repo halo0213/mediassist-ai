@@ -2,28 +2,21 @@ import os
 import json
 import httpx
 from dotenv import load_dotenv
+
+# MUST patch BEFORE importing FastMCP
+import mcp.server.transport_security as _ts
+
+class _PassthroughSecurity:
+    def __init__(self, app):
+        self.app = app
+    async def __call__(self, scope, receive, send):
+        await self.app(scope, receive, send)
+
+_ts.TransportSecurityMiddleware = _PassthroughSecurity
+print("SUCCESS: TransportSecurityMiddleware replaced with passthrough")
+
 import google.generativeai as genai
 from mcp.server.fastmcp import FastMCP
-
-# Patch transport security BEFORE creating FastMCP
-try:
-    from mcp.server.transport_security import TransportSecurityMiddleware
-    
-    # Patch both methods to be safe
-    TransportSecurityMiddleware.is_valid_host = lambda self, host: True
-    
-    original_call = TransportSecurityMiddleware.__call__
-    async def bypassed_call(self, scope, receive, send):
-        if scope["type"] in ("http", "websocket"):
-            scope["headers"] = [
-                (b"host", b"localhost") if k == b"host" else (k, v)
-                for k, v in scope.get("headers", [])
-            ]
-        await self.app(scope, receive, send)
-    TransportSecurityMiddleware.__call__ = bypassed_call
-    print("SUCCESS: Full transport security bypassed")
-except Exception as e:
-    print(f"Patch note: {e}")
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
