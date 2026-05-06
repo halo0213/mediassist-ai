@@ -79,33 +79,31 @@ def image_analyzer(
     try:
         import PIL.Image
         import io
-        import base64
-        image_data = base64.b64decode(image_base64)
+        import base64 as b64
+        image_data = b64.b64decode(image_base64)
         image = PIL.Image.open(io.BytesIO(image_data))
         vision_model = genai.GenerativeModel("gemini-1.5-flash")
-response = vision_model.generate_content([
-                image,
-                f"""You are a clinical image analysis AI.
-FIRST check: Is this a medical/health image (wound, skin, rash, injury)?
-If NOT: respond only with: Please upload a clear photo of a wound or skin condition.
+        response = vision_model.generate_content([
+            image,
+            f"""You are a clinical image analysis AI.
+FIRST check: Is this a medical image (wound, skin, rash, injury)?
+If NOT: respond only: Please upload a photo of a wound or skin condition.
 
-If YES, patient is {patient_age} years old, pain {pain_level}/10, duration {duration_days} days.
-Extra info: {description}
+Patient {patient_age} years old, pain {pain_level}/10, duration {duration_days} days.
+Info: {description}
 
-ASSESSMENT: [What you observe]
-POSSIBLE CONDITIONS: [Top 2-3]
+ASSESSMENT: [what you observe]
+POSSIBLE CONDITIONS: [top 2-3]
 SEVERITY: [LOW / MEDIUM / HIGH / EMERGENCY]
-IMMEDIATE CARE: [What to do now]
-SEE DOCTOR: [Yes urgently / Yes within 48h / Monitor at home]
+IMMEDIATE CARE: [what to do now]
+SEE DOCTOR: [urgency]
 
-DISCLAIMER: AI visual assessment only. Always seek professional medical evaluation.
+DISCLAIMER: AI assessment only. Seek professional medical evaluation.
 Respond in {language}."""
-            ]
-        )
+        ])
         return response.text
     except Exception as e:
         return f"Image analysis error: {str(e)}"
-
 
 @mcp.tool()
 def risk_calculator(
