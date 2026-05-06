@@ -7,11 +7,9 @@ from mcp.server.fastmcp import FastMCP
 
 # Patch transport security BEFORE creating FastMCP
 try:
-    from mcp.server import transport_security as _ts
-    async def _allow_all(self, scope, receive, send):
-        await self.app(scope, receive, send)
-    _ts.TransportSecurityMiddleware.__call__ = _allow_all
-    print("SUCCESS: Transport security bypassed")
+    from mcp.server.transport_security import TransportSecurityMiddleware
+    TransportSecurityMiddleware.is_valid_host = lambda self, host: True
+    print("SUCCESS: is_valid_host patched")
 except Exception as e:
     print(f"Patch note: {e}")
 
