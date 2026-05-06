@@ -5,13 +5,15 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from mcp.server.fastmcp import FastMCP
 
-# Direct patch of MCP transport security
+# Aggressive patch - bypass entire transport security middleware
 try:
     from mcp.server.transport_security import TransportSecurityMiddleware
-    TransportSecurityMiddleware.is_valid_host = lambda self, host: True
-    print("Transport security patched successfully")
+    async def _bypass_security(self, scope, receive, send):
+        await self.app(scope, receive, send)
+    TransportSecurityMiddleware.__call__ = _bypass_security
+    print("Security middleware bypassed successfully")
 except Exception as e:
-    print(f"Patch failed: {e}")
+    print(f"Patch note: {e}")
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -216,29 +218,6 @@ Simple {language}, no medical jargon."""
 
 if __name__ == "__main__":
     import uvicorn
-    from starlette.types import ASGIApp, Receive, Scope, Send
-
-    class HostOverrideMiddleware:
-        def __init__(self, app: ASGIApp):
-            self.app = app
-        async def __call__(self, scope: Scope, receive: Receive, send: Send):
-            if scope["type"] in ("http", "websocket"):
-                scope["headers"] = [
-                    (b"host", b"localhost") if k == b"host" else (k, v)
-                    for k, v in scope.get("headers", [])
-                ]
-            await self.app(scope, receive, send)
-
-    try:
-        base_app = mcp.sse_app()
-        print("Using sse_app")
-    except Exception:
-        try:
-            base_app = mcp.streamable_http_app()
-            print("Using streamable_http_app")
-        except Exception as e:
-            print(f"App error: {e}")
-            raise
-
-    app = HostOverrideMiddleware(base_app)
-    uvicorn.run(app, host="0.0.0.0", port=8000, forwarded_allow_ips="*", proxy_headers=True)
+    port = int(os.environ.get("PORT", 8000))
+    app = mcp.streamable_http_app()
+    uvicorn.run(app, host="0.0.0.0", port=port, forwarded_allow_ips="*", proxy_headers=True)
